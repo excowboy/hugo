@@ -1,7 +1,6 @@
 package hugolib
 
 import (
-	"github.com/spf13/hugo/source"
 	"reflect"
 	"testing"
 )
@@ -311,9 +310,6 @@ type TstX struct {
 
 func TestWhere(t *testing.T) {
 
-	page1 := &Page{contentType: "v", Source: Source{File: *source.NewFile("/x/y/z/source.md")}}
-	page2 := &Page{contentType: "w", Source: Source{File: *source.NewFile("/y/z/a/source.md")}}
-
 	for i, this := range []struct {
 		sequence interface{}
 		key      interface{}
@@ -327,8 +323,6 @@ func TestWhere(t *testing.T) {
 		{[]*TstX{&TstX{"a", "b"}, &TstX{"c", "d"}, &TstX{"e", "f"}}, "B", "f", []*TstX{&TstX{"e", "f"}}},
 		{[]*TstX{&TstX{"a", "b"}, &TstX{"c", "d"}, &TstX{"e", "c"}}, "TstRp", "rc", []*TstX{&TstX{"c", "d"}}},
 		{[]TstX{TstX{"a", "b"}, TstX{"c", "d"}, TstX{"e", "c"}}, "TstRv", "rc", []TstX{TstX{"e", "c"}}},
-		{[]*Page{page1, page2}, "Type", "v", []*Page{page1}},
-		{[]*Page{page1, page2}, "Section", "y", []*Page{page2}},
 	} {
 		results, err := Where(this.sequence, this.key, this.match)
 		if err != nil {
