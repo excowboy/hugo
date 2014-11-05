@@ -230,7 +230,10 @@ func Where(seq, key, match interface{}) (interface{}, error) {
 					vvv = vv.MapIndex(kv)
 				}
 			case reflect.Struct:
-				if kv.Kind() == reflect.String && vv.FieldByName(kv.String()).IsValid() {
+				method := vv.MethodByName(kv.String())
+				if method.IsValid() {
+					vvv = method.Call([]reflect.Value{})[0]
+				} else if kv.Kind() == reflect.String && vv.FieldByName(kv.String()).IsValid() {
 					vvv = vv.FieldByName(kv.String())
 				}
 			case reflect.Ptr:
@@ -242,7 +245,10 @@ func Where(seq, key, match interface{}) (interface{}, error) {
 							vvv = ev.MapIndex(kv)
 						}
 					case reflect.Struct:
-						if kv.Kind() == reflect.String && ev.FieldByName(kv.String()).IsValid() {
+						method := vv.MethodByName(kv.String())
+						if method.IsValid() {
+							vvv = method.Call([]reflect.Value{})[0]
+						} else if kv.Kind() == reflect.String && ev.FieldByName(kv.String()).IsValid() {
 							vvv = ev.FieldByName(kv.String())
 						}
 					}
