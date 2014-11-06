@@ -124,7 +124,9 @@ func extractAndRenderShortcodes(stringToParse string, p *Page, t Template) (stri
 		var data = &ShortcodeWithPage{Params: sc.params, Page: p}
 		if sc.inner != "" {
 			if sc.doMarkup {
-				data.Inner = template.HTML(helpers.RenderBytes([]byte(sc.inner), p.guessMarkupType(), p.UniqueId()))
+				data.Inner = template.HTML(helpers.RenderBytes(helpers.RenderingContext{
+					Content: []byte(sc.inner), PageFmt: p.guessMarkupType(),
+					UniqueId: p.UniqueId(), ConfigFlags: p.getRenderingConfigFlags()}))
 			} else {
 				data.Inner = template.HTML(sc.inner)
 			}
