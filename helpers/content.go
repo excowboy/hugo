@@ -19,6 +19,7 @@ import (
 	"os/exec"
 
 	"github.com/russross/blackfriday"
+	"github.com/spf13/cast"
 	"github.com/spf13/viper"
 
 	jww "github.com/spf13/jwalterweatherman"
@@ -69,14 +70,14 @@ func BytesToHTML(b []byte) template.HTML {
 	return template.HTML(string(b))
 }
 
-func GetHtmlRenderer(defaultFlags int, footnoteref string) blackfriday.Renderer {
+func GetHtmlRenderer(defaultFlags int, ctx RenderingContext) blackfriday.Renderer {
 	renderParameters := blackfriday.HtmlRendererParameters{
 		FootnoteAnchorPrefix:       viper.GetString("FootnoteAnchorPrefix"),
 		FootnoteReturnLinkContents: viper.GetString("FootnoteReturnLinkContents"),
 	}
 
-	if len(footnoteref) != 0 {
-		renderParameters.FootnoteAnchorPrefix = footnoteref + ":" +
+	if len(ctx.UniqueId) != 0 {
+		renderParameters.FootnoteAnchorPrefix = ctx.UniqueId + ":" +
 			renderParameters.FootnoteAnchorPrefix
 	}
 
@@ -86,6 +87,19 @@ func GetHtmlRenderer(defaultFlags int, footnoteref string) blackfriday.Renderer 
 	htmlFlags |= blackfriday.HTML_SMARTYPANTS_FRACTIONS
 	htmlFlags |= blackfriday.HTML_SMARTYPANTS_LATEX_DASHES
 	htmlFlags |= blackfriday.HTML_FOOTNOTE_RETURN_LINKS
+
+	var angledQuotes bool
+
+	if m, ok := ctx.ConfigFlags["angledQuotes"]; ok {
+		// page overrides global setting
+		angledQuotes = m
+	} else {
+		angledQuotes = cast.ToStringMapBool(viper.Get("Markdown"))["angledQuotes"]
+	}
+
+	if angledQuotes {
+		htmlFlags |= blackfriday.HTML_SMARTYPANTS_ANGLED_QUOTES
+	}
 
 	return blackfriday.HtmlRendererWithParameters(htmlFlags, "", "", renderParameters)
 }
@@ -98,14 +112,14 @@ func GetMarkdownExtensions() int {
 		blackfriday.EXTENSION_HEADER_IDS
 }
 
-func MarkdownRender(content []byte, footnoteref string) []byte {
-	return blackfriday.Markdown(content, GetHtmlRenderer(0, footnoteref),
+func MarkdownRender(ctx RenderingContext) []byte {
+	return blackfriday.Markdown(ctx.Content, GetHtmlRenderer(0, ctx),
 		GetMarkdownExtensions())
 }
 
-func MarkdownRenderWithTOC(content []byte, footnoteref string) []byte {
-	return blackfriday.Markdown(content,
-		GetHtmlRenderer(blackfriday.HTML_TOC, footnoteref),
+func MarkdownRenderWithTOC(ctx RenderingContext) []byte {
+	return blackfriday.Markdown(ctx.Content,
+		GetHtmlRenderer(blackfriday.HTML_TOC, ctx),
 		GetMarkdownExtensions())
 }
 
@@ -144,25 +158,32 @@ func ExtractTOC(content []byte) (newcontent []byte, toc []byte) {
 	return
 }
 
-func RenderBytesWithTOC(content []byte, pagefmt string, footnoteref string) []byte {
-	switch pagefmt {
+type RenderingContext struct {
+	Content     []byte
+	PageFmt     string
+	UniqueId    string
+	ConfigFlags map[string]bool
+}
+
+func RenderBytesWithTOC(ctx RenderingContext) []byte {
+	switch ctx.PageFmt {
 	default:
-		return MarkdownRenderWithTOC(content, footnoteref)
+		return MarkdownRenderWithTOC(ctx)
 	case "markdown":
-		return MarkdownRenderWithTOC(content, footnoteref)
+		return MarkdownRenderWithTOC(ctx)
 	case "rst":
-		return []byte(GetRstContent(content))
+		return []byte(GetRstContent(ctx.Content))
 	}
 }
 
-func RenderBytes(content []byte, pagefmt string, footnoteref string) []byte {
-	switch pagefmt {
+func RenderBytes(ctx RenderingContext) []byte {
+	switch ctx.PageFmt {
 	default:
-		return MarkdownRender(content, footnoteref)
+		return MarkdownRender(ctx)
 	case "markdown":
-		return MarkdownRender(content, footnoteref)
+		return MarkdownRender(ctx)
 	case "rst":
-		return []byte(GetRstContent(content))
+		return []byte(GetRstContent(ctx.Content))
 	}
 }
 

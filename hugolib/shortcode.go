@@ -177,7 +177,9 @@ func renderShortcode(sc shortcode, tokenizedShortcodes map[string](string), cnt 
 		}
 
 		if sc.doMarkup {
-			data.Inner = template.HTML(helpers.RenderBytes([]byte(inner), p.guessMarkupType(), p.UniqueId()))
+			data.Inner = template.HTML(helpers.RenderBytes(helpers.RenderingContext{
+				Content: []byte(inner), PageFmt: p.guessMarkupType(),
+				UniqueId: p.UniqueId(), ConfigFlags: p.getRenderingConfigFlags()}))
 		} else {
 			data.Inner = template.HTML(inner)
 		}

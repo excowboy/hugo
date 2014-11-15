@@ -138,11 +138,26 @@ func (p *Page) setSummary() {
 }
 
 func (p *Page) renderBytes(content []byte) []byte {
-	return helpers.RenderBytes(content, p.guessMarkupType(), p.UniqueId())
+	return helpers.RenderBytes(
+		helpers.RenderingContext{Content: content, PageFmt: p.guessMarkupType(),
+			UniqueId: p.UniqueId(), ConfigFlags: p.getRenderingConfigFlags()})
 }
 
 func (p *Page) renderContent(content []byte) []byte {
-	return helpers.RenderBytesWithTOC(content, p.guessMarkupType(), p.UniqueId())
+	return helpers.RenderBytesWithTOC(helpers.RenderingContext{Content: content, PageFmt: p.guessMarkupType(),
+		UniqueId: p.UniqueId(), ConfigFlags: p.getRenderingConfigFlags()})
+}
+
+func (p *Page) getRenderingConfigFlags() map[string]bool {
+	var flags map[string]bool
+
+	if m := p.GetParam("markdown"); m != nil {
+		mb := cast.ToStringMapBool(m)
+		if mb != nil {
+			flags = mb
+		}
+	}
+	return flags
 }
 
 func newPage(filename string) *Page {
@@ -437,6 +452,8 @@ func (page *Page) GetParam(key string) interface{} {
 		return cast.ToTime(v)
 	case []string:
 		return helpers.SliceToLower(v.([]string))
+	case map[interface{}]interface{}:
+		return v
 	}
 	return nil
 }
