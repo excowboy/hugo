@@ -4,10 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"regexp"
 	"testing"
+	"time"
 
 	jww "github.com/spf13/jwalterweatherman"
 )
@@ -41,6 +44,14 @@ func TestCutUsageMessage(t *testing.T) {
 }
 
 func TestCheckErr(t *testing.T) {
+
+	var tmpDir string
+	var err error
+	if tmpDir, err = ioutil.TempDir("", "TestCheckErr"); err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer mustRemoveAll(t, tmpDir)
+
 	tests := []testData{
 		{"ERROR", "first test case", []string{""}, true},
 		{"ERROR", "second test case", []string{"banana", "man"}, true},
@@ -48,15 +59,14 @@ func TestCheckErr(t *testing.T) {
 		{"ERROR", "fourth test case", []string{"multiple", "multi-word strings"}, true},
 		{"CRITICAL", "Oops no array of strings", []string{}, true},
 	}
-	for _, test := range tests {
-		filename := setup(t)
-		defer teardown(t, filename)
+	for i, test := range tests {
+		filename := setup2(t, tmpDir, i)
 		CheckErr(errors.New(test.logError), test.logStr...) // converts the array of strings in test.logStr to a varadic - cool!
 		checkLogFile(t, filename, &test)
 	}
 }
 
-func TestDoStopOnErr(t *testing.T) {
+func _TestDoStopOnErr(t *testing.T) {
 	tests := []struct {
 		message    string
 		cutMessage string
@@ -84,6 +94,14 @@ func TestDoStopOnErr(t *testing.T) {
 }
 
 func checkLogFile(t *testing.T, filename string, test *testData) {
+	time.Sleep(600 * time.Millisecond)
+
+	f := jww.LogHandle.(*os.File)
+	if f != nil {
+		if err := jww.LogHandle.(*os.File).Close(); err != nil {
+			t.Fatalf("Error: Could not close file \"f\". Error: %v\n", err)
+		}
+	}
 	contents, err := ioutil.ReadFile(filename)
 	if err != nil {
 		t.Fatalf("Could not open the log file \"%s\". Failed with %v\n", filename, err)
@@ -154,6 +172,24 @@ func checkForExpectedStingOrFail(t *testing.T, line string, test *testData) {
 	t.Fatalf("Did not find any of the strings \"%v\" in \"%s\"\n", test.logStr, line)
 }
 
+func mustRemoveAll(t *testing.T, path string) {
+	if err := os.RemoveAll(path); err != nil {
+		t.Fatalf("Failed to remove dir %v: %v", path, err)
+	}
+}
+func setup2(t *testing.T, tmpDir string, i int) string {
+
+	f, err := os.Create(filepath.Join(tmpDir, fmt.Sprintf("f%d.log", i)))
+	if err != nil {
+		t.Errorf("Error: Could not create temporary file for the logger. Error: %#v\n", err)
+	}
+	jww.SetStdoutThreshold(jww.LevelFatal)
+	// jww.SetLogFile generates the "Logging to .... " line on stdout.
+	// Maybe we should update jww to remove the fmt.PrintF calls?
+	jww.SetLogFile(f.Name())
+	return f.Name()
+}
+
 func setup(t *testing.T) string {
 	// first set the logger
 	// we can't use jww.UseLogTempFile for this, becase we need the file name
@@ -161,6 +197,7 @@ func setup(t *testing.T) string {
 	// We should really fix jww.UseLogTempFile so we can access the temp file, or
 	// better yet provide a "DeleteTempLogFile" function
 	const logfilename = "utils_test_"
+
 	f, err := ioutil.TempFile(os.TempDir(), logfilename)
 	if err != nil {
 		t.Errorf("Error: Could not create temporary file for the logger. Error: %#v\n", err)
