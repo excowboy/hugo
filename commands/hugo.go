@@ -87,6 +87,13 @@ func init() {
 	HugoCmd.PersistentFlags().BoolVar(&PluralizeListTitles, "pluralizeListTitles", true, "Pluralize titles in lists using inflect")
 	HugoCmd.Flags().BoolVarP(&BuildWatch, "watch", "w", false, "watch filesystem for changes and recreate as needed")
 	hugoCmdV = HugoCmd
+
+	// This messge will be shown to Windows users if Hugo is opened from explorer.exe
+	cobra.MousetrapHelpText = `
+	
+  Hugo is a command line tool
+
+  You need to open cmd.exe and run it from there.`
 }
 
 func InitializeConfig() {
