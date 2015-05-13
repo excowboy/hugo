@@ -3,6 +3,7 @@ package transform
 import (
 	"bytes"
 	"github.com/spf13/hugo/helpers"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -62,6 +63,9 @@ schemaless: &lt;img srcset=&#39;//img.jpg&#39; src=&#39;//basic.jpg&#39;&gt;
 schemaless2: &lt;img srcset=&quot;//img.jpg&quot; src=&quot;//basic.jpg2&gt; POST
 `
 
+const REL_PATH_VARIATIONS = `PRE. a href="/img/small.jpg" POST.`
+const REL_PATH_VARIATIONS_CORRECT = `PRE. a href="../../img/small.jpg" POST.`
+
 var abs_url_bench_tests = []test{
 	{H5_JS_CONTENT_DOUBLE_QUOTE, CORRECT_OUTPUT_SRC_HREF_DQ},
 	{H5_JS_CONTENT_SINGLE_QUOTE, CORRECT_OUTPUT_SRC_HREF_SQ},
@@ -84,6 +88,8 @@ var srcset_xml_tests = []test{
 	{SRCSET_XML_BASIC, SRCSET_XML_BASIC_CORRECT},
 	{SRCSET_XML_SINGLE_QUOTE, SRCSET_XML_SINGLE_QUOTE_CORRECT},
 	{SRCSET_XML_VARIATIONS, SRCSET_XML_VARIATIONS_CORRECT}}
+
+var relurl_tests = []test{{REL_PATH_VARIATIONS, REL_PATH_VARIATIONS_CORRECT}}
 
 func TestChainZeroTransformers(t *testing.T) {
 	tr := NewChain()
@@ -161,6 +167,14 @@ func TestAbsURL(t *testing.T) {
 
 }
 
+func TestRelativeURL(t *testing.T) {
+	absURL, _ := absURLFromURL("http://base")
+	tr := NewChain(absURL...)
+
+	applyWithPath(t.Errorf, tr, relurl_tests, helpers.GetDottedRelativePath(filepath.FromSlash("/post/sub/")))
+
+}
+
 func TestAbsURLSrcSet(t *testing.T) {
 	absURL, _ := absURLFromURL("http://base")
 	tr := NewChain(absURL...)
@@ -194,10 +208,16 @@ func TestXMLAbsURL(t *testing.T) {
 
 type errorf func(string, ...interface{})
 
-func apply(ef errorf, tr chain, tests []test) {
+func applyWithPath(ef errorf, tr chain, tests []test, path string) {
 	for _, test := range tests {
 		out := new(bytes.Buffer)
-		err := tr.Apply(out, strings.NewReader(test.content))
+		var err error
+		if path != "" {
+			err = tr.ApplyWithPath(out, strings.NewReader(test.content), path)
+		} else {
+			err = tr.Apply(out, strings.NewReader(test.content))
+		}
+
 		if err != nil {
 			ef("Unexpected error: %s", err)
 		}
@@ -205,6 +225,10 @@ func apply(ef errorf, tr chain, tests []test) {
 			ef("Expected:\n%s\nGot:\n%s", test.expected, string(out.Bytes()))
 		}
 	}
+}
+
+func apply(ef errorf, tr chain, tests []test) {
+	applyWithPath(ef, tr, tests, "")
 }
 
 type test struct {

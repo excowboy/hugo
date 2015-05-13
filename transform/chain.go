@@ -27,6 +27,11 @@ type contentTransformer interface {
 	io.Writer
 }
 
+// dotPathedTransformer is a contentTransformer with a knowledge of URL path.
+type dotPathedTransformer interface {
+	Path() string
+}
+
 // Implements contentTransformer
 // Content is read from the from-buffer and rewritten to to the to-buffer.
 type fromToBuffer struct {
@@ -42,7 +47,20 @@ func (ft fromToBuffer) Content() []byte {
 	return ft.from.Bytes()
 }
 
+type fromToBufferWithPath struct {
+	path string
+	*fromToBuffer
+}
+
+func (ft fromToBufferWithPath) Path() string {
+	return ft.path
+}
+
 func (c *chain) Apply(w io.Writer, r io.Reader) error {
+	return c.ApplyWithPath(w, r, "")
+}
+
+func (c *chain) ApplyWithPath(w io.Writer, r io.Reader, p string) error {
 
 	b1 := bp.GetBuffer()
 	defer bp.PutBuffer(b1)
@@ -72,7 +90,12 @@ func (c *chain) Apply(w io.Writer, r io.Reader) error {
 			}
 		}
 
-		tr(fb)
+		// TODO(bep)
+		if p != "" {
+			tr(&fromToBufferWithPath{p, fb})
+		} else {
+			tr(fb)
+		}
 	}
 
 	fb.to.WriteTo(w)

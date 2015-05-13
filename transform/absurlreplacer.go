@@ -23,6 +23,9 @@ type absurllexer struct {
 	// the target for the new absurlified content
 	w io.Writer
 
+	// path may be set to a "." relative path
+	path []byte
+
 	pos   int // input position
 	start int // item start position
 	width int // width of last element
@@ -147,7 +150,11 @@ func checkCandidateBase(l *absurllexer) {
 		}
 		l.pos += len(m.match)
 		l.w.Write(m.quote)
-		l.w.Write(m.replacementURL)
+		if len(l.path) > 0 {
+			l.w.Write(l.path)
+		} else {
+			l.w.Write(m.replacementURL)
+		}
 		l.start = l.pos
 	}
 }
@@ -188,7 +195,11 @@ func checkCandidateSrcset(l *absurllexer) {
 		l.w.Write([]byte(m.quote))
 		for i, f := range fields {
 			if f[0] == '/' {
-				l.w.Write(m.replacementURL)
+				if len(l.path) > 0 {
+					l.w.Write(l.path)
+				} else {
+					l.w.Write(m.replacementURL)
+				}
 				l.w.Write(f[1:])
 
 			} else {
@@ -252,9 +263,15 @@ func (l *absurllexer) replace() {
 }
 
 func doReplace(ct contentTransformer, matchers []absURLMatcher) {
+	var path string
+	if p, found := ct.(dotPathedTransformer); found {
+		path = p.Path()
+	}
+
 	lexer := &absurllexer{
 		content:  ct.Content(),
 		w:        ct,
+		path:     []byte(path),
 		matchers: matchers}
 
 	lexer.replace()

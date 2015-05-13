@@ -1419,7 +1419,13 @@ func (s *Site) renderAndWritePage(name string, dest string, d interface{}, layou
 
 	transformLinks := transform.NewEmptyTransforms()
 
-	if viper.GetBool("CanonifyURLs") {
+	var dottedPath string
+
+	if viper.GetBool("RelativeURLs") {
+		dottedPath = helpers.GetDottedRelativePath(dest)
+	}
+
+	if viper.GetBool("RelativeURLs") || viper.GetBool("CanonifyURLs") {
 		absURL, err := transform.AbsURL()
 		if err != nil {
 			return err
@@ -1432,7 +1438,11 @@ func (s *Site) renderAndWritePage(name string, dest string, d interface{}, layou
 	}
 
 	transformer := transform.NewChain(transformLinks...)
-	transformer.Apply(outBuffer, renderBuffer)
+	if dottedPath != "" {
+		transformer.ApplyWithPath(outBuffer, renderBuffer, dottedPath)
+	} else {
+		transformer.Apply(outBuffer, renderBuffer)
+	}
 
 	if err == nil {
 		if err = s.WriteDestPage(dest, outBuffer); err != nil {

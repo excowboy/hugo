@@ -112,6 +112,29 @@ func TestMakePathRelative(t *testing.T) {
 	}
 }
 
+func TestGetDottedRelativePath(t *testing.T) {
+	type test struct {
+		input, expected string
+	}
+	data := []test{
+		{"", "./"},
+		{filepath.FromSlash("/"), "./"},
+		{filepath.FromSlash("post"), "../"},
+		{filepath.FromSlash("/post"), "../"},
+		{filepath.FromSlash("/post/"), "../"},
+		{filepath.FromSlash("/foo/bar/index.html"), "../../"},
+		{filepath.FromSlash("/foo/bar/foo/"), "../../../"},
+		{"404.html", "./"},
+		{"404.xml", "./"},
+	}
+	for i, d := range data {
+		output := GetDottedRelativePath(d.input)
+		if d.expected != output {
+			t.Errorf("Test %d failed. Expected %q got %q", i, d.expected, output)
+		}
+	}
+}
+
 func TestMakeTitle(t *testing.T) {
 	type test struct {
 		input, expected string
